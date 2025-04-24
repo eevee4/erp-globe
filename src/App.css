@@ -1,3 +1,69 @@
+body {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+button, input, select, textarea {
+  background-color: #333333;
+  color: #ffffff;
+  border: 1px solid #444444;
+}
+
+button:hover, input:hover, select:hover, textarea:hover {
+  background-color: #444444;
+}
+
+.header, .footer {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+.navbar {
+  background-color: #222222;
+  color: #ffffff;
+}
+
+.sidebar {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+.card {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  padding: 2em;
+}
+
+.table {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #333333;
+}
+
+.table th, .table td {
+  border: 1px solid #444444;
+}
+
+.modal {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+.alert {
+  background-color: #ff4444;
+  color: #ffffff;
+}
+
+.toast {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+.tooltip {
+  background-color: #222222;
+  color: #ffffff;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -31,10 +97,6 @@
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
-}
-
-.card {
-  padding: 2em;
 }
 
 .read-the-docs {
