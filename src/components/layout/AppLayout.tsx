@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -27,12 +27,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active, onClick 
 };
 
 interface SidebarProps {
-  activeModule: string;
-  setActiveModule: (module: string) => void;
   collapsed: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule, collapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const current = location.pathname.split('/')[1] || 'pre-production';
+
   return (
     <div 
       className={cn(
@@ -53,26 +55,32 @@ const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule, collap
             <SidebarItem
               icon={<span className="material-icons text-lg">inventory_2</span>}
               label="Pre-production"
-              active={activeModule === 'pre-production'}
-              onClick={() => setActiveModule('pre-production')}
+              active={current === 'pre-production'}
+              onClick={() => navigate('/pre-production')}
             />
             <SidebarItem
               icon={<span className="material-icons text-lg">precision_manufacturing</span>}
               label="Post-production"
-              active={activeModule === 'post-production'}
-              onClick={() => setActiveModule('post-production')}
+              active={current === 'post-production'}
+              onClick={() => navigate('/post-production')}
             />
             <SidebarItem
               icon={<span className="material-icons text-lg">receipt_long</span>}
               label="Billing"
-              active={activeModule === 'billing'}
-              onClick={() => setActiveModule('billing')}
+              active={current === 'billing'}
+              onClick={() => navigate('/billing')}
+            />
+            <SidebarItem
+              icon={<span className="material-icons text-lg">history</span>}
+              label="Billing History"
+              active={current === 'billing-history'}
+              onClick={() => navigate('/billing-history')}
             />
             <SidebarItem
               icon={<span className="material-icons text-lg">storage</span>}
               label="Database"
-              active={activeModule === 'database'}
-              onClick={() => setActiveModule('database')}
+              active={current === 'database'}
+              onClick={() => navigate('/database')}
             />
           </>
         ) : (
@@ -80,36 +88,45 @@ const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule, collap
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                activeModule === 'pre-production' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                current === 'pre-production' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
               )}
-              onClick={() => setActiveModule('pre-production')}
+              onClick={() => navigate('/pre-production')}
             >
               <span className="material-icons text-lg">inventory_2</span>
             </div>
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                activeModule === 'post-production' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                current === 'post-production' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
               )}
-              onClick={() => setActiveModule('post-production')}
+              onClick={() => navigate('/post-production')}
             >
               <span className="material-icons text-lg">precision_manufacturing</span>
             </div>
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                activeModule === 'billing' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                current === 'billing' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
               )}
-              onClick={() => setActiveModule('billing')}
+              onClick={() => navigate('/billing')}
             >
               <span className="material-icons text-lg">receipt_long</span>
+            </div>
+            <div
+              className={cn(
+                "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
+                current === 'billing-history' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              )}
+              onClick={() => navigate('/billing-history')}
+            >
+              <span className="material-icons text-lg">history</span>
             </div>
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                activeModule === 'database' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                current === 'database' ? "bg-primary text-primary-foreground" : "hover:bg-accent"
               )}
-              onClick={() => setActiveModule('database')}
+              onClick={() => navigate('/database')}
             >
               <span className="material-icons text-lg">storage</span>
             </div>
@@ -120,19 +137,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule, collap
   );
 };
 
-interface AppLayoutProps {
-  children: React.ReactNode;
-}
-
-const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const [activeModule, setActiveModule] = useState<string>('pre-production');
+const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const current = location.pathname.split('/')[1] || 'pre-production';
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <Sidebar 
-        activeModule={activeModule} 
-        setActiveModule={setActiveModule}
         collapsed={collapsed}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -147,15 +160,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </Button>
             <h1 className="font-semibold text-lg">
-              {activeModule === 'pre-production' && 'Pre-production'}
-              {activeModule === 'post-production' && 'Post-production'}
-              {activeModule === 'billing' && 'Billing'}
-              {activeModule === 'database' && 'Database'}
+              {current === 'pre-production' && 'Pre-production'}
+              {current === 'post-production' && 'Post-production'}
+              {current === 'billing' && 'Billing'}
+              {current === 'billing-history' && 'Billing History'}
+              {current === 'database' && 'Database'}
             </h1>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
