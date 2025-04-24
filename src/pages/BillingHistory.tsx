@@ -305,7 +305,7 @@ const BillingHistoryPage: React.FC = () => {
         </tr>
         <tr>
           <td>GST No.:</td>
-          <td>Name of Excisable Commodity : Parts & Accessories<br>of Vehicles</td>
+          <td>Name of Excisable Commodity : Parts & Accessories of Vehicles</td>
         </tr>
         <tr>
           <td>Category of Consignee<br>Wholesale dealer / Industrial Consumer / Government Department / etc.</td>
@@ -317,6 +317,7 @@ const BillingHistoryPage: React.FC = () => {
         </tr>
         <tr>
           <td>Delivery Challan No. & Date</td>
+          <td></td>
         </tr>
       </table>
 
