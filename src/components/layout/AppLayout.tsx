@@ -17,7 +17,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active, onClick 
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer mb-1 transition-all",
-        active ? "bg-neutral-700 text-neutral-100" : "text-neutral-600 hover:bg-neutral-200"
+        active ? "bg-black text-neutral-100" : "text-neutral-600 hover:bg-neutral-200"
       )}
     >
       <div className="w-5 h-5 flex items-center justify-center">{icon}</div>
@@ -38,18 +38,20 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   return (
     <div 
       className={cn(
-        "bg-neutral-50 h-full min-h-screen flex flex-col transition-all border-r border-neutral-200",
+        "bg-white h-full min-h-screen flex flex-col transition-all border-r border-neutral-200",
         collapsed ? "w-[60px]" : "w-[240px]"
       )}
     >
-      <div className="py-6 px-3 border-b border-neutral-200">
+      <div className="py-6 px-3">
         <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-start")}>
-          <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-100 font-bold">G</div>
-          {!collapsed && <span className="ml-3 font-bold text-lg text-neutral-900">Globe ERP</span>}
+          <div className="w-[100px] flex items-center justify-center text-neutral-100 font-bold">
+            <img src="/image.png" alt="Logo" className="w-full h-full" />
+          </div>
+          {!collapsed && <span className="ml-3 font-bold text-lg text-neutral-900"></span>}
         </div>
       </div>
       
-      <div className="px-2 flex-1 py-4">
+      <div className="px-2 flex-1 py-4 pt-[0px]">
         {!collapsed ? (
           <>
             <SidebarItem
@@ -88,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                current === 'pre-production' ? "bg-neutral-700 text-neutral-100" : "hover:bg-neutral-200"
+                current === 'pre-production' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
               )}
               onClick={() => navigate('/pre-production')}
             >
@@ -97,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                current === 'post-production' ? "bg-neutral-700 text-neutral-100" : "hover:bg-neutral-200"
+                current === 'post-production' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
               )}
               onClick={() => navigate('/post-production')}
             >
@@ -106,7 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                current === 'billing' ? "bg-neutral-700 text-neutral-100" : "hover:bg-neutral-200"
+                current === 'billing' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
               )}
               onClick={() => navigate('/billing')}
             >
@@ -115,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <div
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                current === 'billing-history' ? "bg-neutral-700 text-neutral-100" : "hover:bg-neutral-200"
+                current === 'billing-history' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
               )}
               onClick={() => navigate('/billing-history')}
             >
@@ -124,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
             <div 
               className={cn(
                 "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
-                current === 'database' ? "bg-neutral-700 text-neutral-100" : "hover:bg-neutral-200"
+                current === 'database' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
               )}
               onClick={() => navigate('/database')}
             >
@@ -149,7 +151,7 @@ const AppLayout: React.FC = () => {
         collapsed={collapsed}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto p-6 bg-neutral-50">
+        <main className="flex-1 overflow-auto p-6 bg-neutral-50 pt-[36px]">
           <Outlet />
         </main>
       </div>

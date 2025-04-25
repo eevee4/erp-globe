@@ -1,9 +1,0 @@
-directories:
-  output: release
-  buildResources: build
-appId: com.globerp.app
-win:
-  target:
-    - nsis
-files: []
-electronVersion: 26.6.10

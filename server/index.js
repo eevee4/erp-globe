@@ -44,8 +44,13 @@ db.serialize(() => {
     invoiceNo TEXT,
     productId TEXT,
     quantity INTEGER,
-    amount REAL
+    amount REAL,
+    date TEXT
   )`);
+  // Ensure date column exists in existing table
+  db.run(`ALTER TABLE bills ADD COLUMN date TEXT`, err => {
+    if (err && !err.message.includes('duplicate column name')) console.error(err);
+  });
 });
 
 // Products endpoints
@@ -155,7 +160,18 @@ app.post('/api/production', (req, res) => {
   const stmt = db.prepare('INSERT INTO production (id, conrodId, quantity, date) VALUES (?, ?, ?, ?)');
   stmt.run(id, conrodId, quantity, date, err => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id, conrodId, quantity, date });
+    // Deduct conrod stock from products table
+    db.get('SELECT name FROM conrods WHERE id = ?', [conrodId], (err2, row) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      db.run(
+        'UPDATE products SET quantity = quantity - ? WHERE productName = ? AND productType = ?',
+        [quantity, row.name, 'Conrod'],
+        err3 => {
+          if (err3) return res.status(500).json({ error: err3.message });
+          res.json({ id, conrodId, quantity, date });
+        }
+      );
+    });
   });
 });
 
@@ -186,21 +202,22 @@ app.delete('/api/production/:id', (req, res) => {
 app.get('/api/bills', (req, res) => {
   db.all('SELECT * FROM bills', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const bills = rows.map(r => ({ id: r.id, invoiceNo: r.invoiceNo, productId: r.productId, quantity: r.quantity, amount: r.amount }));
+    const bills = rows.map(r => ({ id: r.id, invoiceNo: r.invoiceNo, productId: r.productId, quantity: r.quantity, amount: r.amount, date: r.date }));
     res.json(bills);
   });
 });
 
 app.post('/api/bills', (req, res) => {
-  const { invoiceNo, productId, quantity, amount } = req.body;
+  const { invoiceNo, productId, quantity, amount, date } = req.body;
+  const dateVal = date || new Date().toISOString();
   const id = uuidv4();
-  const stmt = db.prepare('INSERT INTO bills (id, invoiceNo, productId, quantity, amount) VALUES (?, ?, ?, ?, ?)');
-  stmt.run(id, invoiceNo, productId, quantity, amount, err => {
+  const stmt = db.prepare('INSERT INTO bills (id, invoiceNo, productId, quantity, amount, date) VALUES (?, ?, ?, ?, ?, ?)');
+  stmt.run(id, invoiceNo, productId, quantity, amount, dateVal, err => {
     if (err) return res.status(500).json({ error: err.message });
     // Deduct from production quantity
     db.run('UPDATE production SET quantity = quantity - ? WHERE id = ?', [quantity, productId], err2 => {
       if (err2) console.error(err2);
-      res.json({ id, invoiceNo, productId, quantity, amount });
+      res.json({ id, invoiceNo, productId, quantity, amount, date: dateVal });
     });
   });
 });

@@ -1,32 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React from 'react';
 import { useAppContext } from '@/context/AppContext';
-import { fetchBills, fetchProduction } from '@/lib/api';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bill, ProductionRecord } from '@/types/types';
+import { format } from 'date-fns';
 
 const BillingHistoryPage: React.FC = () => {
-  const { conrods, bills, deleteBill } = useAppContext();
-  const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { conrods, bills, productionRecords, deleteBill } = useAppContext();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const billsData = await fetchBills();
-        const productionData = await fetchProduction();
-        setProductionRecords(productionData);
-      } catch (err) {
-        setError('Failed to fetch data');
-      }
-    };
-    fetchData();
-  }, []);
-
-  const handlePrintInvoice = (b: Bill) => {
-    const rec = productionRecords.find(r => r.id === b.productId);
-    const conrod = rec && conrods.find(c => c.id === rec.conrodId);
+  const handlePrintInvoice = (billItems: Bill[]) => {
+    // Get date from first bill item
+    const firstBill = billItems[0];
+    const invoiceNo = firstBill.invoiceNo;
+    const rec0 = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
+    const dateSource = firstBill?.date || rec0?.date;
+    const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy') : '-';
+    
+    // Calculate grand total
+    const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
+    
     const html = `
       <!DOCTYPE html>
 <html>
@@ -137,18 +130,8 @@ const BillingHistoryPage: React.FC = () => {
       <tr>
         <td style="width: 65%; vertical-align: top; padding: 10px; border-right: none;">
           <div style="display: flex;">
-            <div class="logo">
-              <!-- Logo SVG -->
-              <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="50" cy="35" rx="45" ry="30" stroke="#1a3c78" stroke-width="1.5" fill="none"/>
-                <ellipse cx="50" cy="35" rx="40" ry="25" stroke="#1a3c78" stroke-width="0.75" fill="none"/>
-                <path d="M20,35 L80,35" stroke="#1a3c78" stroke-width="0.75" fill="none"/>
-                <path d="M50,10 L50,60" stroke="#1a3c78" stroke-width="0.75" fill="none"/>
-                <path d="M30,15 C40,40 60,40 70,15" stroke="#1a3c78" stroke-width="0.75" fill="none"/>
-                <path d="M30,55 C40,30 60,30 70,55" stroke="#1a3c78" stroke-width="0.75" fill="none"/>
-                <rect x="32" y="30" width="36" height="10" rx="2" ry="2" fill="#1a3c78"/>
-                <text x="50" y="38" text-anchor="middle" fill="white" font-size="8" font-weight="bold">GLOSTOCO</text>
-              </svg>
+            <div class="logo" style="width: 120px; margin-right: 10px;">
+              <img src="/image.png" alt="Logo" style="width: 100%; height: 100%;" />
             </div>
             <div>
               <div class="company-name">THE GLOBE STORES CO.</div>
@@ -169,11 +152,11 @@ const BillingHistoryPage: React.FC = () => {
           <table style="border-collapse: collapse; margin: 0;">
             <tr>
               <td style="width: 60%; border-right: 1px solid #000;">INVOICE NO.</td>
-              <td style="width: 40%">DATE</td>
+              <td style="width: 40%">${invoiceNo}</td>
             </tr>
             <tr>
-              <td style="height: 20px; border-right: 1px solid #000;"></td>
-              <td style="height: 20px;"></td>
+              <td style="height: 20px; border-right: 1px solid #000;">DATE</td>
+              <td style="height: 20px;">${dateStr}</td>
             </tr>
           </table>
           
@@ -236,7 +219,34 @@ const BillingHistoryPage: React.FC = () => {
         <td style="width: 10%; text-align: center;" class="section-header">RATE</td>
         <td style="width: 15%; text-align: center;" class="section-header">AMOUNT</td>
       </tr>
-      <tr class="empty-row" style="height: 400px;">
+      ${billItems.map((bill, index) => {
+        const rec = productionRecords.find(r => r.id === bill.productId);
+        const conrod = rec && conrods.find(c => c.id === rec.conrodId);
+        // Ensure we have a product name
+        let productName = "Unknown Product";
+        if (conrod?.name) {
+          productName = conrod.name;
+        } else if (rec) {
+          productName = `Production #${rec.id.substr(0, 6)}`;
+        }
+        // Rate is per-unit price
+        const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
+        // Amount is already total (rate * quantity)
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td></td>
+            <td>${productName}</td>
+            <td>Nos</td>
+            <td>${bill.quantity}</td>
+            <td>${rate}</td>
+            <td>${bill.amount ? bill.amount.toFixed(2) : ''}</td>
+          </tr>`;
+      }).join('')}${billItems.length > 0 ? `
+      <tr style="height: ${Math.max(400 - billItems.length * 30, 100)}px;">
+        <td colspan="7"></td>
+      </tr>` : `
+      <tr style="height: 400px;">
         <td></td>
         <td></td>
         <td></td>
@@ -244,6 +254,11 @@ const BillingHistoryPage: React.FC = () => {
         <td></td>
         <td></td>
         <td></td>
+      </tr>`}
+      <tr>
+        <td colspan="5" style="border: none;"></td>
+        <td style="border: 1px solid black; text-align: right;">Total</td>
+        <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
       </tr>
       <tr>
         <td colspan="5" class="eo-text" style="border-right: none; vertical-align: bottom;">E. & O. E.</td>
@@ -260,15 +275,21 @@ const BillingHistoryPage: React.FC = () => {
     if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
   };
 
-  const handlePrintBill = (b: Bill) => {
-    const rec = productionRecords.find(r => r.id === b.productId);
-    const conrod = rec && conrods.find(c => c.id === rec.conrodId);
-    const dateStr = new Date().toLocaleDateString();
-    const rate = (b.amount / b.quantity).toFixed(2);
+  const handlePrintBill = (billItems: Bill[]) => {
+    // Get date from first bill item
+    const firstBill = billItems[0];
+    const invoiceNo = firstBill.invoiceNo;
+    const rec = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
+    const dateSource = firstBill?.date || rec?.date;
+    const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy') : '-';
+    
+    // Calculate grand total
+    const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
+    
     const html = `
   <html>
   <head>
-    <title>Invoice ${b.invoiceNo}</title>
+    <title>Invoice ${invoiceNo}</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
       .invoice-box { max-width: 800px; margin: auto; padding: 20px; background-color:rgb(249, 226, 113); border: 1px solid #000; }
@@ -286,16 +307,19 @@ const BillingHistoryPage: React.FC = () => {
   <body>
     <div class="invoice-box">
       <div class="header">GLOBE ACCESSORIES PVT. LTD.</div>
+      <div style="float: right; margin-top: -30px; margin-right: 20px;">
+        <img src="/image.png" alt="Logo" style="width: 50px; height: 50px;" />
+      </div>
       <div class="address">Gate No.: 2145/2146, Nanekarwadi, Chakan,<br>Tal.: Khed, Dist.: Pune - 410 501.</div>
       
       <table class="main-table">
         <tr>
           <td style="width: 65%">Range - CHAKAN VII Tal. Khed, Dist. Pune - 410 501.</td>
-          <td style="width: 35%">INVOICE NO.</td>
+          <td style="width: 35%">INVOICE NO. ${invoiceNo}</td>
         </tr>
         <tr>
           <td>Division - Pune V, Dr. Ambedkar Road, Excise Bhavan,<br>Akurdi Pune - 411 044.</td>
-          <td>Date:</td>
+          <td>Date: ${dateStr}</td>
         </tr>
         <tr>
           <td>To,</td>
@@ -339,14 +363,30 @@ const BillingHistoryPage: React.FC = () => {
           <td style="width: 15%">Rate per Unit Rs.</td>
           <td style="width: 15%">Total Amount<br>Rs.</td>
         </tr>
-        <tr style="height: 400px;">
-          <td>${b.productId ? '1' : ''}</td>
-          <td>${conrod?.name || ''}</td>
-          <td></td>
-          <td>${b.quantity || ''}</td>
-          <td>${rate || ''}</td>
-          <td>${b.amount ? b.amount.toFixed(2) : ''}</td>
-        </tr>
+        ${billItems.map((bill, index) => {
+          const rec = productionRecords.find(r => r.id === bill.productId);
+          const conrod = rec && conrods.find(c => c.id === rec.conrodId);
+          // Ensure we have a product name
+          let productName = "Unknown Product";
+          if (conrod?.name) {
+            productName = conrod.name;
+          } else if (rec) {
+            productName = `Production #${rec.id.substr(0, 6)}`;
+          }
+          // Rate is per-unit price
+          const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
+          // Amount is already total (rate * quantity)
+          return `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${productName}</td>
+              <td></td>
+              <td>${bill.quantity || ''}</td>
+              <td>${rate || ''}</td>
+              <td>${bill.amount ? bill.amount.toFixed(2) : ''}</td>
+            </tr>
+          `;
+        }).join('')}
       </table>
 
       <table class="footer-table" style="width: 100%; border-collapse: collapse; margin-top:0;">
@@ -393,7 +433,7 @@ const BillingHistoryPage: React.FC = () => {
           <td colspan="5" style="border: 1px solid black; font-size: 11px;">Certified that the particulars given above are true and correct and the amount indicated represents the price<br>actually charged and that there is no flow additional consideration directly or indirectly from the buyer.</td>
           <td style="border: 1px solid black; text-align: right;">Total</td>
         
-          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
         </tr>
         <tr>
           <td colspan="5 style="border: 1px solid black;">Amount in words:</td>
@@ -405,7 +445,7 @@ const BillingHistoryPage: React.FC = () => {
           <td colspan="5" style="border: 1px solid black;"></td>
           <td style="border: 1px solid black; text-align: right;">Grand Total</td>
 
-          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
         </tr>
         <tr>
           <td colspan="3" style="border: 1px solid black;">GST No.: 27AAACG4173B1Z0</td>
@@ -420,6 +460,13 @@ const BillingHistoryPage: React.FC = () => {
     if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
   };
 
+  // Group bills by invoiceNo for multiple products
+  const groupedBills = bills.reduce((acc: Record<string, Bill[]>, b) => {
+    if (!acc[b.invoiceNo]) acc[b.invoiceNo] = [];
+    acc[b.invoiceNo].push(b);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Billing History</h2>
@@ -430,7 +477,7 @@ const BillingHistoryPage: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice No</TableHead>
-                  <TableHead>Product Name</TableHead>
+                  <TableHead>Product(s)</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Date</TableHead>
@@ -443,21 +490,36 @@ const BillingHistoryPage: React.FC = () => {
                     <TableCell colSpan={6} className="text-center py-6 text-gray-500">No bills yet.</TableCell>
                   </TableRow>
                 ) : (
-                  bills.map(b => {
-                    const rec = productionRecords.find(r => r.id === b.productId);
-                    const prod = rec ? conrods.find(c => c.id === rec.conrodId) : undefined;
+                  Object.entries(groupedBills).map(([invoiceNo, items]) => {
+                    const productNames = items.map(item => {
+                      const rec = productionRecords.find(r => r.id === item.productId);
+                      const prod = rec ? conrods.find(c => c.id === rec.conrodId) : undefined;
+                      let productName = "Unknown";
+                      if (prod?.name) {
+                        productName = prod.name;
+                      } else if (rec) {
+                        // If we have a production record but not the conrod details, display a meaningful name
+                        productName = `Production #${rec.id.substr(0, 6)}`;
+                      }
+                      return `${productName} (x${item.quantity})`;
+                    }).join(', ');
+                    const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
+                    const totalAmount = items.reduce((sum, i) => sum + i.amount, 0);
+                    const rec0 = productionRecords.find(r => r.id === items[0].productId);
+                    const dateSource = items[0]?.date || rec0?.date;
+                    const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy HH:mm') : '-';
                     return (
-                      <TableRow key={b.id}>
-                        <TableCell>{b.invoiceNo}</TableCell>
-                        <TableCell>{prod?.name || b.productId}</TableCell>
-                        <TableCell>{b.quantity}</TableCell>
-                        <TableCell>${b.amount}</TableCell>
-                        <TableCell>{new Date(b.date).toLocaleDateString()}</TableCell>
+                      <TableRow key={invoiceNo}>
+                        <TableCell>{invoiceNo}</TableCell>
+                        <TableCell>{productNames}</TableCell>
+                        <TableCell>{totalQty}</TableCell>
+                        <TableCell>₹{totalAmount}</TableCell>
+                        <TableCell>{dateStr}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handlePrintBill(b)}>Print Bill</Button>
-                            <Button variant="outline" size="sm" onClick={() => handlePrintInvoice(b)}>Print Invoice</Button>
-                            <Button variant="destructive" size="sm" onClick={() => deleteBill(b.id)}>Delete</Button>
+                            <Button variant="outline" size="sm" onClick={() => handlePrintBill(items)}>Print Bill</Button>
+                            <Button variant="outline" size="sm" onClick={() => handlePrintInvoice(items)}>Print Invoice</Button>
+                            <Button variant="destructive" size="sm" onClick={() => items.forEach(it => deleteBill(it.id))}>Delete</Button>
                           </div>
                         </TableCell>
                       </TableRow>

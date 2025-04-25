@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useAppContext } from '@/context/AppContext';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
@@ -51,12 +52,10 @@ const PostProduction: React.FC = () => {
     // Record production
     const rec: ProductionRecord = { id: apiRec.id, name: conrod.name, quantity: apiRec.quantity, date: apiRec.date };
     setRecords(prev => [...prev, rec]);
-    // Update conrod inventory in products
-    const existing = products.find(p => p.productName === conrod.name && p.productType === 'Conrod');
-    if (existing) {
-      await updateProductQuantity(existing.id, existing.quantity + qty);
-    } else {
-      await addProduct({ productName: conrod.name, productType: 'Conrod', dimensions: conrod.dimensions, quantity: qty, date: apiRec.date });
+    // Deduct produced conrod from Pre-Production (products)
+    const existingConrod = products.find(p => p.productName === conrod.name && p.productType === 'Conrod');
+    if (existingConrod) {
+      await updateProductQuantity(existingConrod.id, existingConrod.quantity - qty);
     }
     setIsDialogOpen(false);
     setSelectedId('');
@@ -68,6 +67,11 @@ const PostProduction: React.FC = () => {
     setRecords(prev => prev.filter(r => r.id !== id));
   };
 
+  // Filter records to only show those with quantity > 0
+  const nonZeroRecords = useMemo(() => {
+    return records.filter(record => record.quantity > 0);
+  }, [records]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -78,42 +82,36 @@ const PostProduction: React.FC = () => {
       </div>
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="erp-table">
-              <thead>
-                <tr>
-                  <th>Conrod Name</th>
-                  <th>Quantity</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-500">No records yet.</td>
-                  </tr>
-                ) : (
-                  records.map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.name}</td>
-                      <td>{r.quantity}</td>
-                      <td>{format(new Date(r.date), 'dd-MM-yy HH:mm')}</td>
-                      <td>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(r.id)}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Conrod Name</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {nonZeroRecords.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                    {records.length === 0 ? 'No records yet.' : 'No products with quantity greater than 0.'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                nonZeroRecords.map(r => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell>{r.quantity}</TableCell>
+                    <TableCell>{format(new Date(r.date), 'dd-MM-yy HH:mm')}</TableCell>
+                    <TableCell>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(r.id)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
