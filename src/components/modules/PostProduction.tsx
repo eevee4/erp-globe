@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { useAppContext } from '@/context/AppContext';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
-import { fetchProduction, createProduction } from '@/lib/api';
+import { fetchProduction, createProduction, deleteProduction } from '@/lib/api';
 
 interface ProductionRecord {
   id: string;
@@ -18,7 +18,7 @@ interface ProductionRecord {
 }
 
 const PostProduction: React.FC = () => {
-  const { conrods, products, updateProductQuantity, addProduct } = useAppContext();
+  const { conrods, products, updateProductQuantity, addProduct, deleteProductionRecord } = useAppContext();
   const [records, setRecords] = useState<ProductionRecord[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState('');
@@ -63,6 +63,11 @@ const PostProduction: React.FC = () => {
     setQty(1);
   };
 
+  const handleDelete = async (id: string) => {
+    await deleteProduction(id);
+    setRecords(prev => prev.filter(r => r.id !== id));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -80,19 +85,29 @@ const PostProduction: React.FC = () => {
                   <th>Conrod Name</th>
                   <th>Quantity</th>
                   <th>Date</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {records.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="text-center py-6 text-gray-500">No records yet.</td>
+                    <td colSpan={4} className="text-center py-6 text-gray-500">No records yet.</td>
                   </tr>
                 ) : (
                   records.map((r, i) => (
                     <tr key={i}>
                       <td>{r.name}</td>
                       <td>{r.quantity}</td>
-                      <td>{r.date}</td>
+                      <td>{format(new Date(r.date), 'dd-MM-yy HH:mm')}</td>
+                      <td>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(r.id)}
+                        >
+                          Delete
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}

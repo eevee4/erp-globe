@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +23,7 @@ import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 
 const PreProduction: React.FC = () => {
-  const { products, addProduct } = useAppContext();
+  const { products, addProduct, deleteProduct } = useAppContext();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   // Form state
@@ -153,12 +152,13 @@ const PreProduction: React.FC = () => {
                   <th>Dimensions</th>
                   <th>Quantity</th>
                   <th>Date</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-6 text-gray-500">
+                    <td colSpan={6} className="text-center py-6 text-gray-500">
                       No products added yet.
                     </td>
                   </tr>
@@ -183,7 +183,12 @@ const PreProduction: React.FC = () => {
                         )}
                       </td>
                       <td>{product.quantity}</td>
-                      <td>{product.date}</td>
+                      <td>{format(new Date(product.date), 'dd-MM-yy HH:mm')}</td>
+                      <td>
+                        <Button variant="destructive" size="sm" onClick={() => deleteProduct(product.id)}>
+                          Delete
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}

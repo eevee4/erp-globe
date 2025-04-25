@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +15,7 @@ import { useAppContext } from '@/context/AppContext';
 import { Plus } from 'lucide-react';
 
 const Database: React.FC = () => {
-  const { conrods, addConrod } = useAppContext();
+  const { conrods, addConrod, deleteConrod } = useAppContext();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   // Form state
@@ -107,12 +106,13 @@ const Database: React.FC = () => {
                   <th>Dimensions</th>
                   <th>Pin</th>
                   <th>Ball Bearing</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {conrods.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-6 text-gray-500">
+                    <td colSpan={6} className="text-center py-6 text-gray-500">
                       No conrods added yet.
                     </td>
                   </tr>
@@ -128,6 +128,11 @@ const Database: React.FC = () => {
                       </td>
                       <td>{conrod.pin}</td>
                       <td>{conrod.ballBearing}</td>
+                      <td>
+                        <Button variant="destructive" size="sm" onClick={() => deleteConrod(conrod.id)}>
+                          Delete
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}

@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string;
   productName: string;
@@ -26,4 +25,20 @@ export interface Conrod {
   };
   pin: string;
   ballBearing: string;
+}
+
+export interface ProductionRecord {
+  id: string;
+  conrodId: string;
+  quantity: number;
+  date: string;
+}
+
+export interface Bill {
+  id: string;
+  invoiceNo: string;
+  productId: string; // This links to ProductionRecord ID
+  quantity: number;
+  amount: number;
+  date: string;
 }

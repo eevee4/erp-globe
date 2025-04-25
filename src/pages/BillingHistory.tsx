@@ -1,22 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAppContext } from '@/context/AppContext';
-import { fetchBills, Bill } from '@/lib/api';
-import { fetchProduction, ProductionRecord } from '@/lib/api';
+import { fetchBills, fetchProduction } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Bill, ProductionRecord } from '@/types/types';
 
 const BillingHistoryPage: React.FC = () => {
-  const { conrods } = useAppContext();
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [productions, setProductions] = useState<ProductionRecord[]>([]);
+  const { conrods, bills, deleteBill } = useAppContext();
+  const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchBills().then(setBills).catch(err => console.error(err));
-    fetchProduction().then(setProductions).catch(err => console.error(err));
+    const fetchData = async () => {
+      try {
+        const billsData = await fetchBills();
+        const productionData = await fetchProduction();
+        setProductionRecords(productionData);
+      } catch (err) {
+        setError('Failed to fetch data');
+      }
+    };
+    fetchData();
   }, []);
 
   const handlePrintInvoice = (b: Bill) => {
-    const rec = productions.find(r => r.id === b.productId);
+    const rec = productionRecords.find(r => r.id === b.productId);
     const conrod = rec && conrods.find(c => c.id === rec.conrodId);
     const html = `
       <!DOCTYPE html>
@@ -252,7 +261,7 @@ const BillingHistoryPage: React.FC = () => {
   };
 
   const handlePrintBill = (b: Bill) => {
-    const rec = productions.find(r => r.id === b.productId);
+    const rec = productionRecords.find(r => r.id === b.productId);
     const conrod = rec && conrods.find(c => c.id === rec.conrodId);
     const dateStr = new Date().toLocaleDateString();
     const rate = (b.amount / b.quantity).toFixed(2);
@@ -296,7 +305,7 @@ const BillingHistoryPage: React.FC = () => {
             Transfer / Captive use Related Person /<br>
             Independent Buyer etc.<br>
             <br>
-            I. T. PAN No.: AAACG 4166 H
+            I.T. PAN No.: AAACG 4166 H
           </td>
         </tr>
         <tr>
@@ -417,43 +426,46 @@ const BillingHistoryPage: React.FC = () => {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="erp-table">
-              <thead>
-                <tr>
-                  <th>Invoice No</th>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Product Name</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {bills.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-6 text-gray-500">No bills yet.</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">No bills yet.</TableCell>
+                  </TableRow>
                 ) : (
                   bills.map(b => {
-                    const rec = productions.find(r => r.id === b.productId);
+                    const rec = productionRecords.find(r => r.id === b.productId);
                     const prod = rec ? conrods.find(c => c.id === rec.conrodId) : undefined;
                     return (
-                      <tr key={b.id}>
-                        <td>{b.invoiceNo}</td>
-                        <td>{prod?.name || b.productId}</td>
-                        <td>{b.quantity}</td>
-                        <td>{b.amount}</td>
-                        <td>
+                      <TableRow key={b.id}>
+                        <TableCell>{b.invoiceNo}</TableCell>
+                        <TableCell>{prod?.name || b.productId}</TableCell>
+                        <TableCell>{b.quantity}</TableCell>
+                        <TableCell>${b.amount}</TableCell>
+                        <TableCell>{new Date(b.date).toLocaleDateString()}</TableCell>
+                        <TableCell>
                           <div className="flex space-x-2">
                             <Button variant="outline" size="sm" onClick={() => handlePrintBill(b)}>Print Bill</Button>
                             <Button variant="outline" size="sm" onClick={() => handlePrintInvoice(b)}>Print Invoice</Button>
+                            <Button variant="destructive" size="sm" onClick={() => deleteBill(b.id)}>Delete</Button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

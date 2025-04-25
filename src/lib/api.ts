@@ -1,4 +1,4 @@
-import { Product, Conrod } from '@/types/types';
+import { Product, Conrod, ProductionRecord, Bill } from '@/types/types';
 
 export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch('http://localhost:4000/api/products');
@@ -42,13 +42,6 @@ export async function updateProductQuantity(id: string, quantity: number): Promi
   return res.json();
 }
 
-export interface ProductionRecord {
-  id: string;
-  conrodId: string;
-  quantity: number;
-  date: string;
-}
-
 export async function fetchProduction(): Promise<ProductionRecord[]> {
   const res = await fetch('http://localhost:4000/api/production');
   if (!res.ok) throw new Error('Failed to fetch production records');
@@ -75,12 +68,10 @@ export async function updateProduction(id: string, quantity: number): Promise<Pr
   return res.json();
 }
 
-export interface Bill {
-  id: string;
-  invoiceNo: string;
-  productId: string;
-  quantity: number;
-  amount: number;
+export async function deleteProduction(id: string): Promise<{ id: string }> {
+  const res = await fetch(`http://localhost:4000/api/production/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete production record');
+  return res.json();
 }
 
 export async function fetchBills(): Promise<Bill[]> {
@@ -96,5 +87,23 @@ export async function createBill(bill: Omit<Bill, 'id'>): Promise<Bill> {
     body: JSON.stringify(bill),
   });
   if (!res.ok) throw new Error('Failed to create bill');
+  return res.json();
+}
+
+export async function deleteBill(id: string): Promise<{ deletedBillId: string; updatedProductionRecord: ProductionRecord | null }> {
+  const res = await fetch(`http://localhost:4000/api/bills/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete bill');
+  return res.json();
+}
+
+export async function deleteProduct(id: string): Promise<{ id: string }> {
+  const res = await fetch(`http://localhost:4000/api/products/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete product');
+  return res.json();
+}
+
+export async function deleteConrod(id: string): Promise<{ id: string }> {
+  const res = await fetch(`http://localhost:4000/api/conrods/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete conrod');
   return res.json();
 }

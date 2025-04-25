@@ -94,6 +94,14 @@ app.patch('/api/products/:id', (req, res) => {
   });
 });
 
+app.delete('/api/products/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM products WHERE id = ?', [id], err => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id });
+  });
+});
+
 // Conrods endpoints
 app.get('/api/conrods', (req, res) => {
   db.all('SELECT * FROM conrods', (err, rows) => {
@@ -121,6 +129,14 @@ app.post('/api/conrods', (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ id, srNo, name, dimensions, pin, ballBearing });
     });
+  });
+});
+
+app.delete('/api/conrods/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM conrods WHERE id = ?', [id], err => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id });
   });
 });
 
@@ -155,6 +171,17 @@ app.patch('/api/production/:id', (req, res) => {
   });
 });
 
+app.delete('/api/production/:id', (req, res) => {
+  const { id } = req.params;
+  // Note: As discussed, deleting production doesn't automatically revert raw materials
+  // because the creation didn't deduct them. We just delete the record.
+  db.run('DELETE FROM production WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ message: 'Production record not found' });
+    res.json({ id });
+  });
+});
+
 // Billing endpoints
 app.get('/api/bills', (req, res) => {
   db.all('SELECT * FROM bills', (err, rows) => {
@@ -174,6 +201,50 @@ app.post('/api/bills', (req, res) => {
     db.run('UPDATE production SET quantity = quantity - ? WHERE id = ?', [quantity, productId], err2 => {
       if (err2) console.error(err2);
       res.json({ id, invoiceNo, productId, quantity, amount });
+    });
+  });
+});
+
+app.delete('/api/bills/:id', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT productId, quantity FROM bills WHERE id = ?', [id], (err, bill) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!bill) return res.status(404).json({ message: 'Bill not found' });
+
+    db.serialize(() => {
+      db.run('DELETE FROM bills WHERE id = ?', [id], function(err) {
+        if (err) {
+          db.rollback();
+          return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) { // Should not happen due to check above, but safety first
+            db.rollback();
+            return res.status(404).json({ message: 'Bill not found during delete' });
+        }
+
+        // Revert quantity in production table
+        db.run('UPDATE production SET quantity = quantity + ? WHERE id = ?', [bill.quantity, bill.productId], function(err) {
+          if (err) {
+            db.rollback();
+            return res.status(500).json({ error: err.message });
+          }
+          // Optionally check if production record was found (this.changes > 0)
+          // Fetch the updated production record to return it
+          db.get('SELECT * FROM production WHERE id = ?', [bill.productId], (err, updatedProd) => {
+              if (err) {
+                 db.rollback();
+                 return res.status(500).json({ error: err.message });
+              }
+              const productionRecord = updatedProd ? {
+                 id: updatedProd.id,
+                 conrodId: updatedProd.conrodId,
+                 quantity: updatedProd.quantity,
+                 date: updatedProd.date
+              } : null; // Production record might have been deleted elsewhere
+              res.json({ deletedBillId: id, updatedProductionRecord: productionRecord });
+          });
+        });
+      });
     });
   });
 });
