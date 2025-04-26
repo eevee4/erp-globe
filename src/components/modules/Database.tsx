@@ -193,7 +193,8 @@ const Database: React.FC = () => {
               const pinIdx = headers.indexOf('pin');
               const ballBearingIdx = headers.indexOf('ballbearing');
 
-              const mutationPromises = [];
+              // First, get the current highest serial number from the database
+              let parsedRows = [];
               for (let i = 1; i < lines.length; i++) {
                   const values = lines[i].split(',').map(v => v.trim());
                   if (values.length !== headers.length) {
@@ -219,21 +220,37 @@ const Database: React.FC = () => {
                       if (!payload.name || !payload.pin || !payload.ballBearing) {
                           throw new Error(`Invalid data in row ${i + 1}`);
                       }
-                      mutationPromises.push(addConrodMutation.mutateAsync(payload));
+                      parsedRows.push(payload);
                   } catch (parseError: any) {
                       console.error(`Error processing row ${i + 1}:`, parseError.message);
                       errorCount++;
                   }
               }
+              
+              // Process rows sequentially to maintain unique srNo
+              const mutationPromises = [];
+              let currentIndex = 0;
+              
+              const processNextRow = async () => {
+                if (currentIndex >= parsedRows.length) return;
+                
+                try {
+                  await addConrodMutation.mutateAsync(parsedRows[currentIndex]);
+                  successCount++;
+                } catch (error) {
+                  console.error(`Failed to import row: ${error.message}`);
+                  errorCount++;
+                }
+                
+                currentIndex++;
+                await processNextRow();
+              };
+              
+              if (parsedRows.length > 0) {
+                await processNextRow();
+              }
 
-              const results = await Promise.allSettled(mutationPromises);
-              results.forEach(result => {
-                  if (result.status === 'fulfilled') {
-                      successCount++;
-                  } else {
-                      errorCount++;
-                  }
-              });
+              // Processing is now handled sequentially in processNextRow
 
               if (successCount > 0) {
                   toast.success(`Import finished: ${successCount} conrods added.`);

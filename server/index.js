@@ -33,8 +33,6 @@ db.serialize(() => {
     pin TEXT,
     ballBearing TEXT
   )`);
-  // Enforce unique serial numbers for conrod definitions
-  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_conrods_srNo ON conrods(srNo)`);
   db.run(`CREATE TABLE IF NOT EXISTS production (
     id TEXT PRIMARY KEY,
     conrodId TEXT,
@@ -140,13 +138,28 @@ app.get('/api/conrods', (req, res) => {
 app.post('/api/conrods', (req, res) => {
   const { name, dimensions, pin, ballBearing } = req.body;
   const id = uuidv4();
-  db.get('SELECT COUNT(*) AS count FROM conrods', (err, row) => {
+  
+  // Find the max srNo and increment by 1 for the new record
+  db.get('SELECT MAX(srNo) as maxSrNo FROM conrods', (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
-    const srNo = row.count + 1;
-    const stmt = db.prepare('INSERT INTO conrods (id, srNo, name, dimensions, pin, ballBearing) VALUES (?, ?, ?, ?, ?, ?)');
-    stmt.run(id, srNo, name, JSON.stringify(dimensions), pin, ballBearing, err => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id, srNo, name, dimensions, pin, ballBearing });
+    
+    // Start from 1 if no records exist, otherwise increment max by 1
+    const srNo = (row.maxSrNo || 0) + 1;
+    
+    // Verify srNo is unique before insertion
+    db.get('SELECT id FROM conrods WHERE srNo = ?', [srNo], (checkErr, checkRow) => {
+      if (checkErr) return res.status(500).json({ error: checkErr.message });
+      
+      if (checkRow) {
+        return res.status(400).json({ error: `Serial number ${srNo} already exists. Please try again.` });
+      }
+    
+      // Insert the new conrod with unique srNo
+      const stmt = db.prepare('INSERT INTO conrods (id, srNo, name, dimensions, pin, ballBearing) VALUES (?, ?, ?, ?, ?, ?)');
+      stmt.run(id, srNo, name, JSON.stringify(dimensions), pin, ballBearing, insertErr => {
+        if (insertErr) return res.status(500).json({ error: insertErr.message });
+        res.json({ id, srNo, name, dimensions, pin, ballBearing });
+      });
     });
   });
 });
