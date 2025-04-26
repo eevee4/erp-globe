@@ -12,6 +12,35 @@ import { useProductionRecordsQuery } from '@/hooks/productionHooks';
 import { useBillsQuery, useDeleteBillMutation } from '@/hooks/billHooks';
 import { useCustomersQuery } from '@/hooks/customerHooks';
 
+function numberToWords(num: number): string {
+  if (num === 0) return 'Zero Rupees';
+  const oneToNineteen = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tensWords = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const parts: string[] = [];
+  let remainder = num;
+  const crore = Math.floor(remainder / 10000000);
+  if (crore) { parts.push(oneToNineteen[crore] + ' Crores'); remainder %= 10000000; }
+  const lakh = Math.floor(remainder / 100000);
+  if (lakh) { parts.push(oneToNineteen[lakh] + ' Lakhs'); remainder %= 100000; }
+  const thousand = Math.floor(remainder / 1000);
+  if (thousand) { parts.push(oneToNineteen[thousand] + ' Thousand'); remainder %= 1000; }
+  const hundred = Math.floor(remainder / 100);
+  if (hundred) { parts.push(oneToNineteen[hundred] + ' Hundred'); remainder %= 100; }
+  if (remainder > 0) {
+    if (remainder < 20) {
+      parts.push(oneToNineteen[remainder]);
+    } else {
+      const tenVal = Math.floor(remainder / 10);
+      const unitVal = remainder % 10;
+      let segment = tensWords[tenVal];
+      if (unitVal) segment += ' ' + oneToNineteen[unitVal];
+      parts.push(segment);
+    }
+  }
+  return parts.join(' ') + ' Rupees';
+}
+
 const BillingHistory: React.FC = () => {
   // React Query hooks
   const { 
@@ -55,6 +84,224 @@ const BillingHistory: React.FC = () => {
   };
 
   // Print functions - kept exactly as they were per user request
+  const handlePrintBill = (billItems: Bill[]) => {
+    // Get date from first bill item
+    const firstBill = billItems[0];
+    const invoiceNo = firstBill.invoiceNo;
+    const rec0 = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
+    const dateSource = firstBill?.date || rec0?.date;
+    const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy HH:mm') : '-';
+    const customer = firstBill.customerId ? customers.find(c => c.id === firstBill.customerId) : null;
+    // Calculate totals with GST
+    const subTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
+    const gstAmount = subTotal * 0.28; // 28% GST
+    const grandTotal = subTotal + gstAmount;
+    const totalQty = billItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    
+    const html = `
+  <html>
+  <head>
+    <title>Invoice ${invoiceNo}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+      .invoice-box { max-width: 800px; margin: auto; padding: 20px; background-color:rgb(249, 226, 113); border: 1px solid #000; }
+      table { width: 100%; border-collapse: collapse; }
+      .header { font-size: 20px; font-weight: bold; text-align: left; margin-bottom: 5px; }
+      .address { font-size: 12px; margin-bottom: 15px; }
+      td { font-size: 12px; }
+      .main-table td { border: 1px solid #000; padding: 4px; vertical-align: top; }
+      .items-table { border-collapse: collapse; margin: 0; }
+      .items-table td { border: 1px solid #000; padding: 4px; }
+      .footer-table td { border: 1px solid #000; padding: 4px; }
+      .no-border { border: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-box">
+      <div class="header">GLOBE ACCESSORIES PVT. LTD.</div>
+      <div style="float: right; margin-top: -30px; margin-right: 20px;">
+        <img src="/image.png" alt="Logo" style="width: 80px;" />
+      </div>
+      <div class="address">Gate No.: 2145/2146, Nanekarwadi, Chakan,<br>Tal.: Khed, Dist.: Pune - 410 501.</div>
+      
+      <table class="main-table">
+        <tr>
+          <td style="width: 65%">Range - CHAKAN VII Tal. Khed, Dist. Pune - 410 501.</td>
+          <td style="width: 35%">INVOICE NO. ${invoiceNo}</td>
+        </tr>
+        <tr>
+          <td>Division - Pune V, Dr. Ambedkar Road, Excise Bhavan,<br>Akurdi Pune - 411 044.</td>
+          <td>Date: ${dateStr}</td>
+        </tr>
+        <tr>
+          <td>To,<br><br> <strong>${customer?.name || ''},</strong>
+          <br>
+          ${customer?.address || ''}
+          </td>
+          <td rowspan="1">
+            *CLEARANCE FOR HOME CONSUMPTION /<br>
+            EXPORT NATURE FOR REMOVAL (e.g. Stock<br>
+            Transfer / Captive use Related Person /<br>
+            Independent Buyer etc.<br>
+            <br>
+            I.T. PAN No.: AAACG 4166 H
+          </td>
+        </tr>
+        <tr>
+          <td>E.C.C. No.:</td>
+          <td>P.L.A. No.: 170 / 87 / 97</td>
+        </tr>
+        <tr>
+          <td>GST No.:</td>
+          <td>Name of Excisable Commodity : Parts & Accessories of Vehicles</td>
+        </tr>
+        <tr>
+          <td>Category of Consignee<br>Wholesale dealer / Industrial Consumer / Government Department / etc.</td>
+          <td>Tariff Heading No. 8714 19 00<br>Exemption Notification No.</td>
+        </tr>
+        <tr>
+          <td>Your P. O. No. & Date</td>
+          <td>Rate of Duty:<br>[Notification No.] 8 / 2003 dated 01/03/2003</td>
+        </tr>
+        <tr>
+          <td>Delivery Challan No. & Date</td>
+          <td></td>
+        </tr>
+      </table>
+
+      <table class="items-table" style="width: 100%; margin-top:0; border-top:0;">
+        <tr>
+          <td style="width: 5%">Sr.<br>No.</td>
+          <td style="width: 40%">Description and Specification<br>of goods</td>
+          <td style="width: 15%">No. & description<br>of Packages</td>
+          <td style="width: 10%">Total Qty. of<br>goods (net)</td>
+          <td style="width: 15%">Rate per Unit Rs.</td>
+          <td style="width: 15%">Total Amount<br>Rs.</td>
+        </tr>
+        ${billItems.map((bill, index) => {
+          const rec = productionRecords.find(r => r.id === bill.productId);
+          const conrod = rec && conrods.find(c => c.id === rec.conrodId);
+          // Ensure we have a product name
+          let productName = "Unknown Product";
+          if (conrod?.name) {
+            productName = conrod.name;
+          } else if (rec) {
+            productName = `Production #${rec.id.substr(0, 6)}`;
+          }
+          // Include size info if available
+          const sizeInfo = rec?.size ? ` ${rec.size}` : '';
+          // Rate is per-unit price
+          const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
+          // Amount is already total (rate * quantity)
+          return `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${productName}${sizeInfo}</td>
+              <td></td>
+              <td>${bill.quantity || ''}</td>
+              <td>${rate || ''}</td>
+              <td>${bill.amount ? bill.amount.toFixed(2) : ''}</td>
+            </tr>
+          `;
+        }).join('')}
+        <!-- Add 5 empty rows -->
+        <tr>
+          <td style="height: 100px;"></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+
+      <table class="footer-table" style="width: 100%; border-collapse: collapse; margin-top:0;">
+        <tr>
+          <td rowspan="2" style="width: 10%; border: 1px solid black;">Debit<br>Entry</td>
+          <td style="width: 10%; border: 1px solid black;">P.L.A.</td>
+          <td style="width: 20%; border: 1px solid black;">S. No.</td>
+          <td style="width: 20%; border: 1px solid black;">Date</td>
+          <td style="width: 10%; border: 1px solid black;"> ${totalQty}</td>
+          <td style="width: 15%; border: 1px solid black;"></td>
+          <td style="width: 15%; border: 1px solid black;"></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid black;">Cenvat</td>
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid black;">Date of issue of Invoice:</td>
+          <td style="border: 1px solid black;">Time of issue of Invoice:</td>
+          <td style="border: 1px solid black;">Hrs.</td>
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid black;">Date of removal:</td>
+          <td style="border: 1px solid black;">Time of removal:</td>
+          <td style="border: 1px solid black;">Hrs.</td>
+
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid black;">Mode of Transport:</td>
+          <td colspan="2" style="border: 1px solid black;">Veh. No.:</td>
+
+          <td style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black;"></td>
+        </tr>
+        <tr>
+          <td colspan="5" style="border: 1px solid black; font-size: 11px;">Certified that the particulars given above are true and correct and the amount indicated represents the price<br>actually charged and that there is no flow additional consideration directly or indirectly from the buyer.</td>
+          <td style="border: 1px solid black; text-align: right;">Subtotal</td>
+          <td style="border: 1px solid black;">${subTotal.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black; text-align: right;">GST 28%</td>
+          <td style="border: 1px solid black;">${gstAmount.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="border: 1px solid black;"></td>
+          <td style="border: 1px solid black; text-align: right;">Total</td>
+          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="border: 1px solid black;">Amount in words: ${numberToWords(Math.floor(grandTotal))}</td>
+          <td style="border: 1px solid black; text-align: right;">Grand Total</td>
+          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid black;">GST No.: 27AAACG4173B1Z0</td>
+          <td style="border: 1px solid black; text-align: center;">Space for Pre-authentication</td>
+          <td colspan="5" style="border: 1px solid black; text-align: center;">For Globe Accessories Pvt. Ltd.<br><br><br>Authorised Signatories</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+  </html>`;
+    
+    // Open a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      // Print after a slight delay to ensure styles are loaded
+      setTimeout(() => {
+        printWindow.print();
+        // Close window after print dialog is closed (some browsers might block this)
+        printWindow.onafterprint = () => printWindow.close();
+      }, 500);
+    } else {
+      toast.error('Unable to open print window. Please check your popup settings.');
+    }
+  };
+
   const handlePrintInvoice = (billItems: Bill[]) => {
     // Get date from first bill item
     const firstBill = billItems[0];
@@ -63,8 +310,10 @@ const BillingHistory: React.FC = () => {
     const dateSource = firstBill?.date || rec0?.date;
     const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy') : '-';
     const customer = firstBill.customerId ? customers.find(c => c.id === firstBill.customerId) : null;
-    // Calculate grand total
-    const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
+    // Calculate totals with GST
+    const subTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
+    const gstAmount = subTotal * 0.28; // 28% GST
+    const grandTotal = subTotal + gstAmount;
     
     const html = `
       <!DOCTYPE html>
@@ -297,17 +546,24 @@ const BillingHistory: React.FC = () => {
         <td colspan="7"></td>
       </tr>` : `
       <tr style="height: 400px;">
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        
         <td></td>
       </tr>`}
       <tr>
         <td colspan="5" style="border: none;"></td>
-        <td style="border: 1px solid black; text-align: right;">Total</td>
+        <td style="border: 1px solid black; text-align: right;">Subtotal</td>
+        <td style="border: 1px solid black;">${subTotal.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td colspan="5" style="border: none;"></td>
+        <td style="border: 1px solid black; text-align: right;">GST 28%</td>
+        <td style="border: 1px solid black;">${gstAmount.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td colspan="5" style="border: none;">
+          Amount in words: ${numberToWords(Math.floor(grandTotal))}
+        </td>
+        <td style="border: 1px solid black; text-align: right;">Grand Total</td>
         <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
       </tr>
       <tr>
@@ -321,210 +577,6 @@ const BillingHistory: React.FC = () => {
   </div>
 </body>
 </html>`;
-    
-    // Open a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      // Print after a slight delay to ensure styles are loaded
-      setTimeout(() => {
-        printWindow.print();
-        // Close window after print dialog is closed (some browsers might block this)
-        printWindow.onafterprint = () => printWindow.close();
-      }, 500);
-    } else {
-      toast.error('Unable to open print window. Please check your popup settings.');
-    }
-  };
-
-  const handlePrintBill = (billItems: Bill[]) => {
-    // Get date from first bill item
-    const firstBill = billItems[0];
-    const invoiceNo = firstBill.invoiceNo;
-    const rec = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
-    const dateSource = firstBill?.date || rec?.date;
-    const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy HH:mm') : '-';
-    const customer = firstBill.customerId ? customers.find(c => c.id === firstBill.customerId) : null;
-    // Calculate grand total
-    const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
-    
-    const html = `
-  <html>
-  <head>
-    <title>Invoice ${invoiceNo}</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-      .invoice-box { max-width: 800px; margin: auto; padding: 20px; background-color:rgb(249, 226, 113); border: 1px solid #000; }
-      table { width: 100%; border-collapse: collapse; }
-      .header { font-size: 20px; font-weight: bold; text-align: left; margin-bottom: 5px; }
-      .address { font-size: 12px; margin-bottom: 15px; }
-      td { font-size: 12px; }
-      .main-table td { border: 1px solid #000; padding: 4px; vertical-align: top; }
-      .items-table { border-collapse: collapse; margin: 0; }
-      .items-table td { border: 1px solid #000; padding: 4px; }
-      .footer-table td { border: 1px solid #000; padding: 4px; }
-      .no-border { border: none !important; }
-    </style>
-  </head>
-  <body>
-    <div class="invoice-box">
-      <div class="header">GLOBE ACCESSORIES PVT. LTD.</div>
-      <div style="float: right; margin-top: -30px; margin-right: 20px;">
-        <img src="/image.png" alt="Logo" style="width: 80px;" />
-      </div>
-      <div class="address">Gate No.: 2145/2146, Nanekarwadi, Chakan,<br>Tal.: Khed, Dist.: Pune - 410 501.</div>
-      
-      <table class="main-table">
-        <tr>
-          <td style="width: 65%">Range - CHAKAN VII Tal. Khed, Dist. Pune - 410 501.</td>
-          <td style="width: 35%">INVOICE NO. ${invoiceNo}</td>
-        </tr>
-        <tr>
-          <td>Division - Pune V, Dr. Ambedkar Road, Excise Bhavan,<br>Akurdi Pune - 411 044.</td>
-          <td>Date: ${dateStr}</td>
-        </tr>
-        <tr>
-          <td>To,<br><br> <strong>${customer?.name || ''},</strong>
-          <br>
-          ${customer?.address || ''}
-          </td>
-          <td rowspan="1">
-            *CLEARANCE FOR HOME CONSUMPTION /<br>
-            EXPORT NATURE FOR REMOVAL (e.g. Stock<br>
-            Transfer / Captive use Related Person /<br>
-            Independent Buyer etc.<br>
-            <br>
-            I.T. PAN No.: AAACG 4166 H
-          </td>
-        </tr>
-        <tr>
-          <td>E.C.C. No.:</td>
-          <td>P.L.A. No.: 170 / 87 / 97</td>
-        </tr>
-        <tr>
-          <td>GST No.:</td>
-          <td>Name of Excisable Commodity : Parts & Accessories of Vehicles</td>
-        </tr>
-        <tr>
-          <td>Category of Consignee<br>Wholesale dealer / Industrial Consumer / Government Department / etc.</td>
-          <td>Tariff Heading No. 8714 19 00<br>Exemption Notification No.</td>
-        </tr>
-        <tr>
-          <td>Your P. O. No. & Date</td>
-          <td>Rate of Duty:<br>[Notification No.] 8 / 2003 dated 01/03/2003</td>
-        </tr>
-        <tr>
-          <td>Delivery Challan No. & Date</td>
-          <td></td>
-        </tr>
-      </table>
-
-      <table class="items-table" style="width: 100%; margin-top:0; border-top:0;">
-        <tr>
-          <td style="width: 5%">Sr.<br>No.</td>
-          <td style="width: 40%">Description and Specification<br>of goods</td>
-          <td style="width: 15%">No. & description<br>of Packages</td>
-          <td style="width: 10%">Total Qty. of<br>goods (net)</td>
-          <td style="width: 15%">Rate per Unit Rs.</td>
-          <td style="width: 15%">Total Amount<br>Rs.</td>
-        </tr>
-        ${billItems.map((bill, index) => {
-          const rec = productionRecords.find(r => r.id === bill.productId);
-          const conrod = rec && conrods.find(c => c.id === rec.conrodId);
-          // Ensure we have a product name
-          let productName = "Unknown Product";
-          if (conrod?.name) {
-            productName = conrod.name;
-          } else if (rec) {
-            productName = `Production #${rec.id.substr(0, 6)}`;
-          }
-          // Include size info if available
-          const sizeInfo = rec?.size ? ` ${rec.size}` : '';
-          // Rate is per-unit price
-          const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
-          // Amount is already total (rate * quantity)
-          return `
-            <tr>
-              <td>${index + 1}</td>
-              <td>${productName}${sizeInfo}</td>
-              <td></td>
-              <td>${bill.quantity || ''}</td>
-              <td>${rate || ''}</td>
-              <td>${bill.amount ? bill.amount.toFixed(2) : ''}</td>
-            </tr>
-          `;
-        }).join('')}
-      </table>
-
-      <table class="footer-table" style="width: 100%; border-collapse: collapse; margin-top:0;">
-        <tr>
-          <td rowspan="2" style="width: 10%; border: 1px solid black;">Debit<br>Entry</td>
-          <td style="width: 10%; border: 1px solid black;">P.L.A.</td>
-          <td style="width: 20%; border: 1px solid black;">S. No.</td>
-          <td style="width: 20%; border: 1px solid black;">Date</td>
-          <td style="width: 10%; border: 1px solid black;">Rs.</td>
-          <td style="width: 15%; border: 1px solid black;"></td>
-          <td style="width: 15%; border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid black;">Cenvat</td>
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td colspan="3" style="border: 1px solid black;">Date of issue of Invoice:</td>
-          <td style="border: 1px solid black;">Time of issue of Invoice:</td>
-          <td style="border: 1px solid black;">Hrs.</td>
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td colspan="3" style="border: 1px solid black;">Date of removal:</td>
-          <td style="border: 1px solid black;">Time of removal:</td>
-          <td style="border: 1px solid black;">Hrs.</td>
-
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td colspan="3" style="border: 1px solid black;">Mode of Transport:</td>
-          <td colspan="2" style="border: 1px solid black;">Veh. No.:</td>
-
-          <td style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td colspan="5" style="border: 1px solid black; font-size: 11px;">Certified that the particulars given above are true and correct and the amount indicated represents the price<br>actually charged and that there is no flow additional consideration directly or indirectly from the buyer.</td>
-          <td style="border: 1px solid black; text-align: right;">Total</td>
-        
-          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td colspan="5 style="border: 1px solid black;">Amount in words:</td>
-          <td style="border: 1px solid black; text-align: right;">Round Off</td>
-
-          <td style="border: 1px solid black;"></td>
-        </tr>
-        <tr>
-          <td colspan="5" style="border: 1px solid black;"></td>
-          <td style="border: 1px solid black; text-align: right;">Grand Total</td>
-
-          <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td colspan="3" style="border: 1px solid black;">GST No.: 27AAACG4173B1Z0</td>
-          <td style="border: 1px solid black; text-align: center;">Space for Pre-authentication</td>
-          <td colspan="5" style="border: 1px solid black; text-align: center;">For Globe Accessories Pvt. Ltd.<br><br><br>Authorised Signatories</td>
-        </tr>
-      </table>
-    </div>
-  </body>
-  </html>`;
     
     // Open a new window for printing
     const printWindow = window.open('', '_blank');
