@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       )}
     >
       <div className="py-6 px-3">
-        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-start")}>
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-center")}>
           <div className="w-[100px] flex items-center justify-center text-neutral-100 font-bold">
             <img src="/image.png" alt="Logo" className="w-full h-full" />
           </div>
