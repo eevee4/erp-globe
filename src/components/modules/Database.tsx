@@ -290,7 +290,7 @@ const Database: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Conrod Database / Definitions</h2>
+        <h2 className="text-2xl font-bold">Conrod Database</h2>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
@@ -298,7 +298,7 @@ const Database: React.FC = () => {
           </Button>
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Conrod Definition
+            Add Conrod Database
           </Button>
         </div>
       </div>

@@ -377,7 +377,7 @@ const PostProduction: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Conrod Production Records</CardTitle>
+            <CardTitle className="text-2xl font-bold">Conrod Assembly</CardTitle>
             <Button onClick={() => setIsDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Record Production
@@ -432,7 +432,7 @@ const PostProduction: React.FC = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Record Conrod Production</DialogTitle>
+            <DialogTitle>Create Conrod</DialogTitle>
             <DialogDescription>
               Select a conrod type and quantity to produce. Required components will be automatically deducted from inventory.
             </DialogDescription>
@@ -470,6 +470,15 @@ const PostProduction: React.FC = () => {
             {selectedConrod && (
               <div className="bg-muted p-4 rounded-md">
                 <div className="font-medium mb-2">Required Components:</div>
+                <div className="border rounded-md p-3 bg-white mb-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-medium">Conrod</span>
+                    <Badge variant="default">Available</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-1 truncate">
+                    Selected: <span className="font-medium">{selectedConrod.name}</span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pin Component Status */}
                   <div className="border rounded-md p-3 bg-white">
@@ -552,7 +561,7 @@ const PostProduction: React.FC = () => {
               disabled={createMutation.isPending || !canProduceConrod}
             >
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Record Production
+              Create Conrod
             </Button>
           </DialogFooter>
         </DialogContent>

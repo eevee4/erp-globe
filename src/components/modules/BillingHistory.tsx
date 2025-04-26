@@ -604,7 +604,7 @@ const BillingHistory: React.FC = () => {
                   </TableRow>
                 ) : (
                   Object.entries(groupedBills).map(([invoiceNo, items]) => {
-                    const productNames = items.map(item => {
+                    const productItems = items.map(item => {
                       const rec = productionRecords.find(r => r.id === item.productId);
                       const prod = rec ? conrods.find(c => c.id === rec.conrodId) : undefined;
                       let productName = "Unknown";
@@ -616,8 +616,11 @@ const BillingHistory: React.FC = () => {
                       }
                       // Add size information if available
                       const sizeInfo = rec?.size ? ` Size: ${rec.size}` : '';
-                      return `${productName}${sizeInfo} (x${item.quantity})`;
-                    }).join(', ');
+                      return {
+                        name: `${productName}${sizeInfo}`,
+                        quantity: item.quantity
+                      };
+                    });
                     
                     const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
                     const totalAmount = items.reduce((sum, i) => sum + i.amount, 0);
@@ -634,7 +637,15 @@ const BillingHistory: React.FC = () => {
                       <TableRow key={invoiceNo}>
                         <TableCell>{invoiceNo}</TableCell>
                         <TableCell>{customer ? customer.name : 'N/A'}</TableCell>
-                        <TableCell>{productNames}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col space-y-1">
+                            {productItems.map((item, idx) => (
+                              <div key={idx} className="inline-flex items-center bg-secondary text-secondary-foreground rounded-full px-2 py-1 text-xs">
+                                {item.name} <span className="ml-1 font-semibold">(x{item.quantity})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
                         <TableCell>{totalQty}</TableCell>
                         <TableCell>₹{totalAmount}</TableCell>
                         <TableCell>{dateStr}</TableCell>
