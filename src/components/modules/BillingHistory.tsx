@@ -640,7 +640,7 @@ const BillingHistory: React.FC = () => {
                         <TableCell>
                           <div className="flex flex-col space-y-1">
                             {productItems.map((item, idx) => (
-                              <div key={idx} className="inline-flex items-center bg-secondary text-secondary-foreground rounded-full px-2 py-1 text-xs">
+                              <div key={idx} className="inline-flex justify-between items-center border border-neutral-200 text-secondary-foreground rounded-full px-2 py-1 text-xs">
                                 {item.name} <span className="ml-1 font-semibold">(x{item.quantity})</span>
                               </div>
                             ))}
