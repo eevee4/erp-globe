@@ -33,6 +33,8 @@ db.serialize(() => {
     pin TEXT,
     ballBearing TEXT
   )`);
+  // Enforce unique serial numbers for conrod definitions
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_conrods_srNo ON conrods(srNo)`);
   db.run(`CREATE TABLE IF NOT EXISTS production (
     id TEXT PRIMARY KEY,
     conrodId TEXT,
