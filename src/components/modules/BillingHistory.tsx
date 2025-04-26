@@ -667,7 +667,7 @@ const BillingHistory: React.FC = () => {
                         productName = `Production #${rec.id.substr(0, 6)}`;
                       }
                       // Add size information if available
-                      const sizeInfo = rec?.size ? ` Size: ${rec.size}` : '';
+                      const sizeInfo = rec?.size ? ` - Size: ${rec.size}` : '';
                       return {
                         name: `${productName}${sizeInfo}`,
                         quantity: item.quantity
@@ -693,7 +693,7 @@ const BillingHistory: React.FC = () => {
                           <div className="flex flex-col space-y-1">
                             {productItems.map((item, idx) => (
                               <div key={idx} className="inline-flex justify-between items-center border border-neutral-200 text-secondary-foreground rounded-full px-2 py-1 text-xs">
-                                {item.name} <span className="ml-1 font-semibold">(x{item.quantity})</span>
+                                {item.name} <span className="ml-1 font-bold text-gray-500">{item.quantity}</span>
                               </div>
                             ))}
                           </div>
