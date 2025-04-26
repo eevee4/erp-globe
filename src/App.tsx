@@ -7,8 +7,9 @@ import { AppContextProvider } from "./context/AppContext";
 import AppLayout from "@/components/layout/AppLayout";
 import PreProductionPage from "@/pages/PreProduction";
 import PostProductionPage from "@/pages/PostProduction";
-import BillingPage from "@/pages/Billing";
-import BillingHistoryPage from "@/pages/BillingHistory";
+import Billing from "@/components/modules/Billing";
+import BillingHistory from "@/components/modules/BillingHistory";
+import CustomersPage from "@/pages/Customers";
 import DatabasePage from "@/pages/Database";
 import NotFoundPage from "@/pages/NotFound";
 
@@ -26,8 +27,9 @@ const App = () => (
               <Route index element={<PreProductionPage />} />
               <Route path="pre-production" element={<PreProductionPage />} />
               <Route path="post-production" element={<PostProductionPage />} />
-              <Route path="billing" element={<BillingPage />} />
-              <Route path="billing-history" element={<BillingHistoryPage />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="billing-history" element={<BillingHistory />} />
+              <Route path="customers" element={<CustomersPage />} />
               <Route path="database" element={<DatabasePage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

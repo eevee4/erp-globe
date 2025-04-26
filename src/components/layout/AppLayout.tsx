@@ -79,6 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
               onClick={() => navigate('/billing-history')}
             />
             <SidebarItem
+              icon={<span className="material-icons text-lg">people</span>}
+              label="Customers"
+              active={current === 'customers'}
+              onClick={() => navigate('/customers')}
+            />
+            <SidebarItem
               icon={<span className="material-icons text-lg">storage</span>}
               label="Database"
               active={current === 'database'}
@@ -122,6 +128,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
               onClick={() => navigate('/billing-history')}
             >
               <span className="material-icons text-lg">history</span>
+            </div>
+            <div
+              className={cn(
+                "flex items-center justify-center p-3 rounded-md cursor-pointer mb-1",
+                current === 'customers' ? "bg-black text-neutral-100" : "hover:bg-neutral-200"
+              )}
+              onClick={() => navigate('/customers')}
+            >
+              <span className="material-icons text-lg">people</span>
             </div>
             <div 
               className={cn(

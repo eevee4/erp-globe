@@ -1,21 +1,60 @@
-import React, { useEffect, useState } from 'react';
-import { useAppContext } from '@/context/AppContext';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Bill, ProductionRecord, Customer } from '@/types/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Bill } from '@/types/types';
 import { format } from 'date-fns';
-import { fetchCustomers } from '@/lib/api';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import { useConrodsQuery } from '@/hooks/conrodHooks';
+import { useProductionRecordsQuery } from '@/hooks/productionHooks';
+import { useBillsQuery, useDeleteBillMutation } from '@/hooks/billHooks';
+import { useCustomersQuery } from '@/hooks/customerHooks';
 
-const BillingHistoryPage: React.FC = () => {
-  const { conrods, bills, productionRecords, deleteBill } = useAppContext();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+const BillingHistory: React.FC = () => {
+  // React Query hooks
+  const { 
+    data: bills = [], 
+    isLoading: isLoadingBills, 
+    error: billsError 
+  } = useBillsQuery();
   
-  useEffect(() => {
-    // Fetch customers to display customer names in the bills
-    fetchCustomers().then(setCustomers).catch(err => console.error('Error fetching customers:', err));
-  }, []);
+  const { 
+    data: conrods = [], 
+    isLoading: isLoadingConrods, 
+    error: conrodsError 
+  } = useConrodsQuery();
+  
+  const { 
+    data: productionRecords = [], 
+    isLoading: isLoadingProduction, 
+    error: productionError 
+  } = useProductionRecordsQuery();
+  
+  const {
+    data: customers = [],
+    isLoading: isLoadingCustomers,
+    error: customersError
+  } = useCustomersQuery();
+  
+  const deleteBillMutation = useDeleteBillMutation({
+    onSuccess: () => {
+      toast.success('Bill deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete bill: ${error.message}`);
+    }
+  });
 
+  // Handle bill deletion
+  const handleDeleteBill = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this bill? This action cannot be undone.')) {
+      deleteBillMutation.mutate(id);
+    }
+  };
+
+  // Print functions - kept exactly as they were per user request
   const handlePrintInvoice = (billItems: Bill[]) => {
     // Get date from first bill item
     const firstBill = billItems[0];
@@ -23,10 +62,7 @@ const BillingHistoryPage: React.FC = () => {
     const rec0 = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
     const dateSource = firstBill?.date || rec0?.date;
     const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy') : '-';
-    
-    // Find customer information if available
     const customer = firstBill.customerId ? customers.find(c => c.id === firstBill.customerId) : null;
-    
     // Calculate grand total
     const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
     
@@ -188,19 +224,27 @@ const BillingHistoryPage: React.FC = () => {
     <!-- Customer/Address Section with Packing & Documents -->
     <table style="border-collapse: collapse; margin-top: -1px;">
       <tr>
-        <td style="width: 65%; height: 120px;"></td>
-        <td style="width: 35%; vertical-align: top; padding: 10px; border-left: none;">
-          <div style="font-size: 13px; margin-top: 8px;">
-            <div><strong>Invoice No. : </strong>${invoiceNo}</div>
-            <div><strong>Dated : </strong>${dateStr}</div>
-          </div>
-
-          <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 8px;">
-            <div style="margin-bottom: 5px;"><strong>${customer ? customer.name : 'Deliver To:'}</strong></div>
-            <div>
-              ${customer ? customer.address.replace(/\n/g, '<br>') : '[CLIENT ADDRESS]'}<br>
-            </div>
-          </div>
+        <td style="width: 65%; height: 120px;">
+          To,<br><br> <strong>${customer?.name || ''},</strong>
+          <br>
+          ${customer?.address || ''}
+        </td>
+        <td style="width: 35%; vertical-align: top; padding: 0;">
+          <table style="border-collapse: collapse; width: 100%;">
+            <tr>
+              <td style="border-top: 0.5px solid #000;">PACKING NOTE NO. / DELIVERY CHALLAN NO.</td>
+            </tr>
+            <tr>
+              <td style="height: 20px;"></td>
+            </tr>
+            <tr>
+              <td style="border-top: 0.5px solid #000;">DOCUMENTS THROUGH</td>
+            </tr>
+            <tr>
+              <td style="height: 20px;"></td>
+            </tr>
+          </table>
+        </td>
       </tr>
     </table>
     
@@ -235,8 +279,6 @@ const BillingHistoryPage: React.FC = () => {
         } else if (rec) {
           productName = `Production #${rec.id.substr(0, 6)}`;
         }
-        // Add size information if available
-        const sizeInfo = rec?.size ? ` Size: ${rec.size}` : '';
         // Rate is per-unit price
         const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
         // Amount is already total (rate * quantity)
@@ -244,7 +286,7 @@ const BillingHistoryPage: React.FC = () => {
           <tr>
             <td>${index + 1}</td>
             <td></td>
-            <td>${productName}${sizeInfo}</td>
+            <td>${productName}</td>
             <td>Nos</td>
             <td>${bill.quantity}</td>
             <td>${rate}</td>
@@ -279,8 +321,22 @@ const BillingHistoryPage: React.FC = () => {
   </div>
 </body>
 </html>`;
-    const w = window.open('', '_blank', 'width=800,height=600');
-    if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    
+    // Open a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      // Print after a slight delay to ensure styles are loaded
+      setTimeout(() => {
+        printWindow.print();
+        // Close window after print dialog is closed (some browsers might block this)
+        printWindow.onafterprint = () => printWindow.close();
+      }, 500);
+    } else {
+      toast.error('Unable to open print window. Please check your popup settings.');
+    }
   };
 
   const handlePrintBill = (billItems: Bill[]) => {
@@ -290,7 +346,7 @@ const BillingHistoryPage: React.FC = () => {
     const rec = firstBill.productId ? productionRecords.find(r => r.id === firstBill.productId) : null;
     const dateSource = firstBill?.date || rec?.date;
     const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy HH:mm') : '-';
-    
+    const customer = firstBill.customerId ? customers.find(c => c.id === firstBill.customerId) : null;
     // Calculate grand total
     const grandTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
     
@@ -316,7 +372,7 @@ const BillingHistoryPage: React.FC = () => {
     <div class="invoice-box">
       <div class="header">GLOBE ACCESSORIES PVT. LTD.</div>
       <div style="float: right; margin-top: -30px; margin-right: 20px;">
-        <img src="/image.png" alt="Logo" style="width: 50px; height: 50px;" />
+        <img src="/image.png" alt="Logo" style="width: 80px;" />
       </div>
       <div class="address">Gate No.: 2145/2146, Nanekarwadi, Chakan,<br>Tal.: Khed, Dist.: Pune - 410 501.</div>
       
@@ -330,7 +386,10 @@ const BillingHistoryPage: React.FC = () => {
           <td>Date: ${dateStr}</td>
         </tr>
         <tr>
-          <td>To,</td>
+          <td>To,<br><br> <strong>${customer?.name || ''},</strong>
+          <br>
+          ${customer?.address || ''}
+          </td>
           <td rowspan="1">
             *CLEARANCE FOR HOME CONSUMPTION /<br>
             EXPORT NATURE FOR REMOVAL (e.g. Stock<br>
@@ -381,8 +440,8 @@ const BillingHistoryPage: React.FC = () => {
           } else if (rec) {
             productName = `Production #${rec.id.substr(0, 6)}`;
           }
-          // Add size information if available
-          const sizeInfo = rec?.size ? ` Size: ${rec.size}` : '';
+          // Include size info if available
+          const sizeInfo = rec?.size ? ` ${rec.size}` : '';
           // Rate is per-unit price
           const rate = bill.quantity ? (bill.amount / bill.quantity).toFixed(2) : '';
           // Amount is already total (rate * quantity)
@@ -466,9 +525,50 @@ const BillingHistoryPage: React.FC = () => {
     </div>
   </body>
   </html>`;
-    const w = window.open('', '_blank', 'width=600,height=600');
-    if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    
+    // Open a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      // Print after a slight delay to ensure styles are loaded
+      setTimeout(() => {
+        printWindow.print();
+        // Close window after print dialog is closed (some browsers might block this)
+        printWindow.onafterprint = () => printWindow.close();
+      }, 500);
+    } else {
+      toast.error('Unable to open print window. Please check your popup settings.');
+    }
   };
+
+  // Loading state
+  const isLoading = isLoadingBills || isLoadingConrods || isLoadingProduction || isLoadingCustomers;
+  
+  // Error handling
+  const error = billsError || conrodsError || productionError || customersError;
+  
+  if (isLoading) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        <span className="text-lg">Loading...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          {error.message || 'Failed to load billing history. Please try again.'}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   // Group bills by invoiceNo for multiple products
   const groupedBills = bills.reduce((acc: Record<string, Bill[]>, b) => {
@@ -498,7 +598,9 @@ const BillingHistoryPage: React.FC = () => {
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-6 text-gray-500">No bills yet.</TableCell>
+                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      No bills yet. Create a bill from the Billing section.
+                    </TableCell>
                   </TableRow>
                 ) : (
                   Object.entries(groupedBills).map(([invoiceNo, items]) => {
@@ -509,18 +611,20 @@ const BillingHistoryPage: React.FC = () => {
                       if (prod?.name) {
                         productName = prod.name;
                       } else if (rec) {
-                        // If we have a production record but not the conrod details, display a meaningful name
+                        // If we have a production record but not the conrod details
                         productName = `Production #${rec.id.substr(0, 6)}`;
                       }
                       // Add size information if available
                       const sizeInfo = rec?.size ? ` Size: ${rec.size}` : '';
                       return `${productName}${sizeInfo} (x${item.quantity})`;
                     }).join(', ');
+                    
                     const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
                     const totalAmount = items.reduce((sum, i) => sum + i.amount, 0);
                     const rec0 = productionRecords.find(r => r.id === items[0].productId);
                     const dateSource = items[0]?.date || rec0?.date;
                     const dateStr = dateSource ? format(new Date(dateSource), 'dd-MM-yy HH:mm') : '-';
+                    
                     // Get customer information
                     const customer = items[0]?.customerId 
                       ? customers.find(c => c.id === items[0].customerId)
@@ -536,9 +640,29 @@ const BillingHistoryPage: React.FC = () => {
                         <TableCell>{dateStr}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handlePrintBill(items)}>Print Bill</Button>
-                            <Button variant="outline" size="sm" onClick={() => handlePrintInvoice(items)}>Print Invoice</Button>
-                            <Button variant="destructive" size="sm" onClick={() => items.forEach(it => deleteBill(it.id))}>Delete</Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handlePrintBill(items)}
+                            >
+                              Print Bill
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handlePrintInvoice(items)}
+                            >
+                              Print Invoice
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => items.forEach(it => handleDeleteBill(it.id))}
+                              disabled={deleteBillMutation.isPending}
+                            >
+                              {deleteBillMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Delete
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -554,4 +678,4 @@ const BillingHistoryPage: React.FC = () => {
   );
 };
 
-export default BillingHistoryPage;
+export default BillingHistory;

@@ -37,11 +37,23 @@ db.serialize(() => {
     id TEXT PRIMARY KEY,
     conrodId TEXT,
     quantity INTEGER,
+    size TEXT,
     date TEXT
   )`);
+  // Ensure size column exists in existing production table
+  db.run(`ALTER TABLE production ADD COLUMN size TEXT`, err => {
+    if (err && !err.message.includes('duplicate column name')) console.error(err);
+  });
+  db.run(`CREATE TABLE IF NOT EXISTS customers (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    address TEXT
+  )`);
+  
   db.run(`CREATE TABLE IF NOT EXISTS bills (
     id TEXT PRIMARY KEY,
     invoiceNo TEXT,
+    customerId TEXT,
     productId TEXT,
     quantity INTEGER,
     amount REAL,
@@ -137,6 +149,36 @@ app.post('/api/conrods', (req, res) => {
   });
 });
 
+app.patch('/api/conrods/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, dimensions, pin, ballBearing } = req.body;
+  const stmt = db.prepare(
+    'UPDATE conrods SET name = ?, dimensions = ?, pin = ?, ballBearing = ? WHERE id = ?'
+  );
+  stmt.run(
+    name,
+    JSON.stringify(dimensions),
+    pin,
+    ballBearing,
+    id,
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get('SELECT * FROM conrods WHERE id = ?', [id], (err2, row) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        if (!row) return res.status(404).json({ error: 'Conrod not found' });
+        res.json({
+          id: row.id,
+          srNo: row.srNo,
+          name: row.name,
+          dimensions: JSON.parse(row.dimensions),
+          pin: row.pin,
+          ballBearing: row.ballBearing
+        });
+      });
+    }
+  );
+});
+
 app.delete('/api/conrods/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM conrods WHERE id = ?', [id], err => {
@@ -149,40 +191,43 @@ app.delete('/api/conrods/:id', (req, res) => {
 app.get('/api/production', (req, res) => {
   db.all('SELECT * FROM production', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const production = rows.map(r => ({ id: r.id, conrodId: r.conrodId, quantity: r.quantity, date: r.date }));
+    const production = rows.map(r => ({ id: r.id, conrodId: r.conrodId, quantity: r.quantity, size: r.size, date: r.date }));
     res.json(production);
   });
 });
 
 app.post('/api/production', (req, res) => {
-  const { conrodId, quantity, date } = req.body;
+  const { conrodId, quantity, size, date } = req.body;
   const id = uuidv4();
-  const stmt = db.prepare('INSERT INTO production (id, conrodId, quantity, date) VALUES (?, ?, ?, ?)');
-  stmt.run(id, conrodId, quantity, date, err => {
+  const stmt = db.prepare('INSERT INTO production (id, conrodId, quantity, size, date) VALUES (?, ?, ?, ?, ?)');
+  stmt.run(id, conrodId, quantity, size || null, date, err => {
     if (err) return res.status(500).json({ error: err.message });
-    // Deduct conrod stock from products table
-    db.get('SELECT name FROM conrods WHERE id = ?', [conrodId], (err2, row) => {
+    db.get('SELECT * FROM production WHERE id = ?', [id], (err2, row) => {
       if (err2) return res.status(500).json({ error: err2.message });
-      db.run(
-        'UPDATE products SET quantity = quantity - ? WHERE productName = ? AND productType = ?',
-        [quantity, row.name, 'Conrod'],
-        err3 => {
-          if (err3) return res.status(500).json({ error: err3.message });
-          res.json({ id, conrodId, quantity, date });
-        }
-      );
+      res.json({ id: row.id, conrodId: row.conrodId, quantity: row.quantity, size: row.size, date: row.date });
     });
   });
 });
 
 app.patch('/api/production/:id', (req, res) => {
   const { id } = req.params;
-  const { quantity } = req.body;
-  db.run('UPDATE production SET quantity = ? WHERE id = ?', [quantity, id], function(err) {
+  const { quantity, size } = req.body;
+  let updateQuery = 'UPDATE production SET quantity = ?';
+  let params = [quantity];
+  
+  if (size !== undefined) {
+    updateQuery += ', size = ?';
+    params.push(size);
+  }
+  
+  updateQuery += ' WHERE id = ?';
+  params.push(id);
+  
+  db.run(updateQuery, params, function(err) {
     if (err) return res.status(500).json({ error: err.message });
     db.get('SELECT * FROM production WHERE id = ?', [id], (err2, row) => {
       if (err2) return res.status(500).json({ error: err2.message });
-      res.json({ id: row.id, conrodId: row.conrodId, quantity: row.quantity, date: row.date });
+      res.json({ id: row.id, conrodId: row.conrodId, quantity: row.quantity, size: row.size, date: row.date });
     });
   });
 });
@@ -202,22 +247,49 @@ app.delete('/api/production/:id', (req, res) => {
 app.get('/api/bills', (req, res) => {
   db.all('SELECT * FROM bills', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const bills = rows.map(r => ({ id: r.id, invoiceNo: r.invoiceNo, productId: r.productId, quantity: r.quantity, amount: r.amount, date: r.date }));
+    const bills = rows.map(r => ({ id: r.id, invoiceNo: r.invoiceNo, customerId: r.customerId, productId: r.productId, quantity: r.quantity, amount: r.amount, date: r.date }));
     res.json(bills);
   });
 });
 
+// Customers endpoints
+app.get('/api/customers', (req, res) => {
+  db.all('SELECT * FROM customers', (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/customers', (req, res) => {
+  const { name, address } = req.body;
+  const id = uuidv4();
+  const stmt = db.prepare('INSERT INTO customers (id, name, address) VALUES (?, ?, ?)');
+  stmt.run(id, name, address, err => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id, name, address });
+  });
+});
+
+app.delete('/api/customers/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM customers WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ message: 'Customer not found' });
+    res.json({ id });
+  });
+});
+
 app.post('/api/bills', (req, res) => {
-  const { invoiceNo, productId, quantity, amount, date } = req.body;
+  const { invoiceNo, customerId, productId, quantity, amount, date } = req.body;
   const dateVal = date || new Date().toISOString();
   const id = uuidv4();
-  const stmt = db.prepare('INSERT INTO bills (id, invoiceNo, productId, quantity, amount, date) VALUES (?, ?, ?, ?, ?, ?)');
-  stmt.run(id, invoiceNo, productId, quantity, amount, dateVal, err => {
+  const stmt = db.prepare('INSERT INTO bills (id, invoiceNo, customerId, productId, quantity, amount, date) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, invoiceNo, customerId || null, productId, quantity, amount, dateVal, err => {
     if (err) return res.status(500).json({ error: err.message });
     // Deduct from production quantity
     db.run('UPDATE production SET quantity = quantity - ? WHERE id = ?', [quantity, productId], err2 => {
       if (err2) console.error(err2);
-      res.json({ id, invoiceNo, productId, quantity, amount, date: dateVal });
+      res.json({ id, invoiceNo, customerId, productId, quantity, amount, date: dateVal });
     });
   });
 });
@@ -256,6 +328,7 @@ app.delete('/api/bills/:id', (req, res) => {
                  id: updatedProd.id,
                  conrodId: updatedProd.conrodId,
                  quantity: updatedProd.quantity,
+                 size: updatedProd.size,
                  date: updatedProd.date
               } : null; // Production record might have been deleted elsewhere
               res.json({ deletedBillId: id, updatedProductionRecord: productionRecord });
