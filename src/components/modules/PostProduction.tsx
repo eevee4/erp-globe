@@ -477,9 +477,14 @@ const PostProduction: React.FC = () => {
                     <span className="font-medium">Conrod</span>
                     <Badge variant={products.some(p => 
                       p.productType === 'Conrod' && 
-                      p.productName.toLowerCase() === selectedConrod?.name.toLowerCase() && 
-                      p.quantity >= formState.quantity
-                    ) ? "default" : "destructive"}>
+                      p.productName.toLowerCase() === selectedConrod?.name.toLowerCase()
+                    ) ? 
+                      (products.some(p => 
+                        p.productType === 'Conrod' && 
+                        p.productName.toLowerCase() === selectedConrod?.name.toLowerCase() && 
+                        p.quantity >= formState.quantity
+                      ) ? "default" : "destructive") : 
+                      "outline"}>
                       {products.some(p => 
                         p.productType === 'Conrod' && 
                         p.productName.toLowerCase() === selectedConrod?.name.toLowerCase()
@@ -518,7 +523,7 @@ const PostProduction: React.FC = () => {
                           );
                         } else {
                           return (
-                            <>In stock: <span className="font-medium text-red-600">0</span> <span className="text-red-600">(Not found in inventory)</span></>
+                            <>In stock: <span className="font-medium text-black">0</span> <span className="text-black">(Not found in inventory)</span></>
                           );
                         }
                       })()
