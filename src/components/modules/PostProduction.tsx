@@ -470,13 +470,17 @@ const PostProduction: React.FC = () => {
             {selectedConrod && (
               <div className="bg-muted p-4 rounded-md">
                 <div className="font-medium mb-2">Required Components:</div>
+                {/* Conrod Component Status */}
                 <div className="border rounded-md p-3 bg-white mb-3">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium">Conrod</span>
                     <Badge variant="default">Available</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground mb-1 truncate">
-                    Selected: <span className="font-medium">{selectedConrod.name}</span>
+                    Required: <span className="font-medium">{selectedConrod.name}</span>
+                  </div>
+                  <div className="text-sm">
+                    In stock: <span className="font-medium text-green-600">∞</span> (Always available)
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
