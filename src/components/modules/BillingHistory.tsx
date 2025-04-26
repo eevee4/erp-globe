@@ -314,6 +314,7 @@ const BillingHistory: React.FC = () => {
     const subTotal = billItems.reduce((sum, item) => sum + item.amount, 0);
     const gstAmount = subTotal * 0.28; // 28% GST
     const grandTotal = subTotal + gstAmount;
+    const totalQty = billItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
     
     const html = `
       <!DOCTYPE html>
@@ -510,8 +511,8 @@ const BillingHistory: React.FC = () => {
     <!-- Items Table -->
     <table class="main-table">
       <tr>
-        <td style="width: 5%; text-align: center;" class="section-header">SR.<br>NO.</td>
-        <td style="width: 10%; text-align: center;" class="section-header">PART<br>NO.</td>
+        <td style="width: 5%; text-align: center;" class="section-header">SR.<br>No.</td>
+        <td style="width: 10%; text-align: center;" class="section-header">PART<br>No.</td>
         <td style="width: 40%;" class="description-header section-header">D E S C R I P T I O N</td>
         <td style="width: 10%; text-align: center;" class="section-header">UNIT</td>
         <td style="width: 10%; text-align: center;" class="section-header">QTY.</td>
@@ -541,30 +542,31 @@ const BillingHistory: React.FC = () => {
             <td>${rate}</td>
             <td>${bill.amount ? bill.amount.toFixed(2) : ''}</td>
           </tr>`;
-      }).join('')}${billItems.length > 0 ? `
+      }).join('')}
+      ${billItems.length > 0 ? `
       <tr style="height: ${Math.max(400 - billItems.length * 30, 100)}px;">
-        <td colspan="7"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
       </tr>` : `
       <tr style="height: 400px;">
-        
-        <td></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
       </tr>`}
       <tr>
-        <td colspan="5" style="border: none;"></td>
-        <td style="border: 1px solid black; text-align: right;">Subtotal</td>
-        <td style="border: 1px solid black;">${subTotal.toFixed(2)}</td>
+        <td colspan="4" style="border: none; border-bottom: 0.5px solid black;"></td>
+        <td style="text-align:center; border: none; border-bottom: 0.5px solid black;">${totalQty}</td>
+        <td style="border: 0.5px solid black; text-align: right;">Subtotal</td>
+        <td style="border: 0.5px solid black;">${subTotal.toFixed(2)}</td>
       </tr>
       <tr>
         <td colspan="5" style="border: none;"></td>
-        <td style="border: 1px solid black; text-align: right;">GST 28%</td>
-        <td style="border: 1px solid black;">${gstAmount.toFixed(2)}</td>
+        <td style="border: 0.5px solid black; text-align: right;">GST 28%</td>
+        <td style="border: 0.5px solid black;">${gstAmount.toFixed(2)}</td>
       </tr>
       <tr>
         <td colspan="5" style="border: none;">
           Amount in words: ${numberToWords(Math.floor(grandTotal))}
         </td>
-        <td style="border: 1px solid black; text-align: right;">Grand Total</td>
-        <td style="border: 1px solid black;">${grandTotal.toFixed(2)}</td>
+        <td style="border: 0.5px solid black; text-align: right;">Grand Total</td>
+        <td style="border: 0.5px solid black;">${grandTotal.toFixed(2)}</td>
       </tr>
       <tr>
         <td colspan="5" class="eo-text" style="border-right: none; vertical-align: bottom;">E. & O. E.</td>
