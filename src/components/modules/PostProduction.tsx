@@ -470,6 +470,7 @@ const PostProduction: React.FC = () => {
             {selectedConrod && (
               <div className="bg-muted p-4 rounded-md">
                 <div className="font-medium mb-2">Required Components:</div>
+                
                 {/* Conrod Component Status */}
                 <div className="border rounded-md p-3 bg-white mb-3">
                   <div className="flex justify-between items-center mb-1">
@@ -480,9 +481,36 @@ const PostProduction: React.FC = () => {
                     Required: <span className="font-medium">{selectedConrod.name}</span>
                   </div>
                   <div className="text-sm">
-                    In stock: <span className="font-medium text-green-600">∞</span> (Always available)
+                    {
+                      // Find if conrod exists in inventory
+                      (() => {
+                        const conrodProduct = products.find(p => 
+                          p.productType === 'Conrod' && 
+                          p.productName.toLowerCase() === selectedConrod?.name.toLowerCase()
+                        );
+                        
+                        if (conrodProduct) {
+                          const isEnough = conrodProduct.quantity >= formState.quantity;
+                          return (
+                            <>
+                              In stock: <span className={isEnough ? "font-medium text-green-600" : "font-medium text-red-600"}>
+                                {conrodProduct.quantity}
+                              </span>
+                              {!isEnough && (
+                                <span className="text-red-600"> (need {formState.quantity})</span>
+                              )}
+                            </>
+                          );
+                        } else {
+                          return (
+                            <>In stock: <span className="font-medium text-green-600">∞</span> (Always available)</>
+                          );
+                        }
+                      })()
+                    }
                   </div>
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pin Component Status */}
                   <div className="border rounded-md p-3 bg-white">
