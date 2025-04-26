@@ -475,7 +475,22 @@ const PostProduction: React.FC = () => {
                 <div className="border rounded-md p-3 bg-white mb-3">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium">Conrod</span>
-                    <Badge variant="default">Available</Badge>
+                    <Badge variant={products.some(p => 
+                      p.productType === 'Conrod' && 
+                      p.productName.toLowerCase() === selectedConrod?.name.toLowerCase() && 
+                      p.quantity >= formState.quantity
+                    ) ? "default" : "destructive"}>
+                      {products.some(p => 
+                        p.productType === 'Conrod' && 
+                        p.productName.toLowerCase() === selectedConrod?.name.toLowerCase()
+                      ) ? 
+                        (products.some(p => 
+                          p.productType === 'Conrod' && 
+                          p.productName.toLowerCase() === selectedConrod?.name.toLowerCase() && 
+                          p.quantity >= formState.quantity
+                        ) ? "Available" : "Insufficient") : 
+                        "Not Found"}
+                    </Badge>
                   </div>
                   <div className="text-sm text-muted-foreground mb-1 truncate">
                     Required: <span className="font-medium">{selectedConrod.name}</span>
@@ -503,7 +518,7 @@ const PostProduction: React.FC = () => {
                           );
                         } else {
                           return (
-                            <>In stock: <span className="font-medium text-green-600">∞</span> (Always available)</>
+                            <>In stock: <span className="font-medium text-red-600">0</span> <span className="text-red-600">(Not found in inventory)</span></>
                           );
                         }
                       })()
